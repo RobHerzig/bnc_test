@@ -35,7 +35,8 @@ def create_dataset(dataset, look_back=1):
 
 def create_model(look_back, name_for_file_load):
     model = Sequential()
-    model.add(LSTM(4, input_shape=(1, look_back)))
+    model.add(LSTM(look_back*2, input_shape=(1, look_back)))
+    # model.add(Dense(look_back))
     model.add(Dense(1))
 
     try:
@@ -107,42 +108,42 @@ def generate_models_for_data(data, names, num_epochs=3, lookback_steps=5):
 
         # create and fit the LSTM network
         model = create_model(look_back, cur_name)
-        model.compile(loss='mean_squared_error',
+        model.compile(loss='mse',
                       optimizer='adam',
-                      metrics=['mae', 'acc'])
+                      metrics=['mse', 'acc'])
         model.fit(trainX, trainY, epochs=num_epochs, batch_size=1, verbose=2)
 
         # todo: save model
         save_model(cur_name, model)
 
         models.append(model)
-        # make predictions
-        trainPredict = model.predict(trainX)
-        testPredict = model.predict(testX)
-
-        # invert predictions
-        # trainPredict = scaler.inverse_transform(trainPredict)
-        # trainY = scaler.inverse_transform(trainY)
-        # testPredict = scaler.inverse_transform(testPredict)
-        # testY = scaler.inverse_transform(testY)
-        # # calculate root mean squared error
-        # trainScore = math.sqrt(mean_squared_error(trainY, trainPredict[:]))
-        # print('Train Score: %.2f RMSE' % (trainScore))
-        # testScore = math.sqrt(mean_squared_error(testY, testPredict[:]))
-        # print('Test Score: %.2f RMSE' % (testScore))
-        # # shift train predictions for plotting
-        # trainPredictPlot = numpy.empty_like(dataset)
-        # trainPredictPlot[:, :] = numpy.nan
-        # trainPredictPlot[look_back:len(trainPredict) + look_back, :] = trainPredict
-        # # shift test predictions for plotting
-        # testPredictPlot = numpy.empty_like(dataset)
-        # testPredictPlot[:, :] = numpy.nan
-        # testPredictPlot[len(trainPredict) + (look_back * 2) + 1:len(dataset) - 1, :] = testPredict
-        # # plot baseline and predictions
-        # plt.plot(scaler.inverse_transform(dataset))
-        # plt.plot(trainPredictPlot)
-        # plt.plot(testPredictPlot)
-        # plt.show()
+    #     # make predictions
+    #     trainPredict = model.predict(trainX)
+    #     testPredict = model.predict(testX)
+    #
+    #     # invert predictions
+    #     trainPredict = scaler.inverse_transform(trainPredict)
+    #     trainY = scaler.inverse_transform(trainY)
+    #     testPredict = scaler.inverse_transform(testPredict)
+    #     testY = scaler.inverse_transform(testY)
+    #     # calculate root mean squared error
+    #     trainScore = math.sqrt(mean_squared_error(trainY, trainPredict[:]))
+    #     print('Train Score: %.2f RMSE' % (trainScore))
+    #     testScore = math.sqrt(mean_squared_error(testY, testPredict[:]))
+    #     print('Test Score: %.2f RMSE' % (testScore))
+    #     # shift train predictions for plotting
+    #     trainPredictPlot = numpy.empty_like(dataset)
+    #     trainPredictPlot[:, :] = numpy.nan
+    #     trainPredictPlot[look_back:len(trainPredict) + look_back, :] = trainPredict
+    #     # shift test predictions for plotting
+    #     testPredictPlot = numpy.empty_like(dataset)
+    #     testPredictPlot[:, :] = numpy.nan
+    #     testPredictPlot[len(trainPredict) + (look_back * 2) + 1:len(dataset) - 1, :] = testPredict
+    #     # plot baseline and predictions
+    #     plt.plot(scaler.inverse_transform(dataset))
+    #     plt.plot(trainPredictPlot)
+    #     plt.plot(testPredictPlot)
+    # plt.show()
     return models
 
 
@@ -176,15 +177,16 @@ def predict_most_current(names, lookback, models):
 
 
 def get_newest_ratios(name_list, lookback_steps, models):
+    print(time.ctime())
     cur_ratios = predict_most_current(names, lookback_steps, models)
     for i in range(0, len(name_list)):
         print(name_list[i] + " " + str(cur_ratios[i]) + " times previous")
     return cur_ratios
 
 
-num_lookback_steps = 5
+num_lookback_steps = 4
 continuously_predict = True
-train = False
+train = True
 
 names = ["TRXETH",
          "OMGETH",
@@ -195,7 +197,7 @@ names = ["TRXETH",
 generated_models = []
 if (train):
     data = generate_historical_arrays(names)
-    generated_models = generate_models_for_data(data, names, lookback_steps=num_lookback_steps, num_epochs=15)
+    generated_models = generate_models_for_data(data, names, lookback_steps=num_lookback_steps, num_epochs=6)
 else:
     try:
         generated_models = load_models_without_training(names)

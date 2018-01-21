@@ -14,7 +14,7 @@ info = client.get_account()
 
 def get_ratios_1min_24h(currency):
     # fetch 1 minute klines for the last day up until now
-    klines = client.get_historical_klines(currency, Client.KLINE_INTERVAL_1MINUTE, "18 Jan, 2018")
+    klines = client.get_historical_klines(currency, Client.KLINE_INTERVAL_3MINUTE, "30 days ago UTC")
     print("KLINES: " + str(klines))
 
     close_data = np.array(klines)[:, 4]
@@ -30,7 +30,7 @@ def get_ratios_1min_24h(currency):
 
 def get_last_30min(currency):
     # fetch 1 minute klines for the last day up until now
-    klines = client.get_historical_klines(currency, Client.KLINE_INTERVAL_1MINUTE, "45 minutes ago UTC")
+    klines = client.get_historical_klines(currency, Client.KLINE_INTERVAL_3MINUTE, "2 days ago UTC")
     # print("KLINES: " + str(klines))
 
     close_data = np.array(klines)[:, 3]
