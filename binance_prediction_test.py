@@ -10,6 +10,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 from binance.client import Client
 from keras.models import model_from_json
+import time
 
 api_key = "sGfyIE0zYoKkZ3M0CtnuZpf070GGkUmXrDimdyavp3FMShQkh7unnrzue9pwGEay"
 api_secret = "lz9NXEITdTH6sF8UZ1IPFaWs3MjjScHhjuMvyznS27GMFQviTWqlF1RvFP0D7snl"
@@ -19,13 +20,13 @@ client = Client(api_key, api_secret)
 info = client.get_account()
 print(info)
 
-from binance_startup import  get_ratios_1min_24h, get_last_30min
+from binance_startup import get_ratios_1min_24h, get_last_30min
 
 
 # convert an array of values into a dataset matrix
 def create_dataset(dataset, look_back=1):
     dataX, dataY = [], []
-    for i in range(len(dataset) - look_back - 1):
+    for i in range(len(dataset) - look_back):
         a = dataset[i:(i + look_back)]
         dataX.append(a)
         dataY.append(dataset[i + look_back])
@@ -43,6 +44,7 @@ def create_model(look_back, name_for_file_load):
         print("NO WEIGHTS FOUND")
     return model
 
+
 def get_prediction(model, values):
     model.predict(values)
 
@@ -55,6 +57,7 @@ def generate_historical_arrays(names):
         close_arrays.append(close_array)
     return close_arrays
 
+
 def save_model(name_of_model, model):
     # serialize model to JSON
     model_json = model.to_json()
@@ -63,6 +66,7 @@ def save_model(name_of_model, model):
     # serialize weights to HDF5
     model.save_weights(name_of_model + ".h5")
     print("Saved model + " + name_of_model + " to disk")
+
 
 def load_model(name_of_model):
     json_file = open(name_of_model + ".json", 'r')
@@ -75,9 +79,11 @@ def load_model(name_of_model):
     print("SUCCESSFULLY LOADED MODEL " + name_of_model)
     return loaded_model
 
+
 scaler = MinMaxScaler(feature_range=(0, 1))
 
-def generate_models_for_data(data, names, num_epochs = 3, lookback_steps = 5):
+
+def generate_models_for_data(data, names, num_epochs=3, lookback_steps=5):
     models = []
     for i in range(0, len(data)):
         global scaler
@@ -106,7 +112,7 @@ def generate_models_for_data(data, names, num_epochs = 3, lookback_steps = 5):
                       metrics=['mae', 'acc'])
         model.fit(trainX, trainY, epochs=num_epochs, batch_size=1, verbose=2)
 
-        #todo: save model
+        # todo: save model
         save_model(cur_name, model)
 
         models.append(model)
@@ -139,6 +145,7 @@ def generate_models_for_data(data, names, num_epochs = 3, lookback_steps = 5):
         # plt.show()
     return models
 
+
 def load_models_without_training(names):
     models = []
     for name in names:
@@ -147,41 +154,66 @@ def load_models_without_training(names):
         models.append(model)
     return models
 
+
 def predict_most_current(names, lookback, models):
+    ratios = []
     for i in range(0, len(names)):
         global scaler
         new_data = get_last_30min(names[i])
         model = models[i]
-        new_data = new_data[(len(new_data)-lookback): len(new_data)]
+        new_data = new_data[(len(new_data) - lookback): len(new_data)]
         new_data = new_data.reshape(-1, 1)
         scaled_data = scaler.fit_transform(new_data)
         scaled_data = scaled_data.reshape(1, 1, lookback)
-        print("PREDICT BASED ON: " + str(new_data))
+        # print("PREDICT BASED ON: " + str(new_data))
         prediction = model.predict(scaled_data)
         prediction = scaler.inverse_transform(prediction)
-        print(names[i] + " PREDICTION: " + str(prediction))
+        ratio = prediction / new_data[len(new_data) - 1]
+        # print(names[i] + " PREDICTION: " + str(prediction))
+        # print("WHICH IS " + str(ratio) + " * most recent value")
+        ratios.append(ratio)
+    return ratios
+
+
+def get_newest_ratios(name_list, lookback_steps, models):
+    cur_ratios = predict_most_current(names, lookback_steps, models)
+    for i in range(0, len(name_list)):
+        print(name_list[i] + " " + str(cur_ratios[i]) + " times previous")
+    return cur_ratios
+
 
 num_lookback_steps = 5
+continuously_predict = True
 train = False
 
 names = ["TRXETH",
          "OMGETH",
-         # "NEOETH",
-         # "LRCETH",
+         "NEOETH",
+         "LRCETH",
          "AMBETH"]
 
-
 generated_models = []
-if(train):
+if (train):
     data = generate_historical_arrays(names)
-    generated_models = generate_models_for_data(data, names, lookback_steps=num_lookback_steps)
+    generated_models = generate_models_for_data(data, names, lookback_steps=num_lookback_steps, num_epochs=15)
 else:
     try:
         generated_models = load_models_without_training(names)
     except:
         print("COULD NOT LOAD MODELS")
 
-predict_most_current(names, num_lookback_steps, generated_models)
+# predict_most_current(names, num_lookback_steps, generated_models)
 
+get_newest_ratios(names, num_lookback_steps, generated_models)
 
-
+time_interval_in_seconds = 30
+if continuously_predict:
+    seconds = time_interval_in_seconds
+    print("PREDICT EVERY " + str(seconds) + " SECONDS")
+    while True:
+        # print(seconds)
+        time.sleep(1)
+        seconds = seconds - 1
+        if seconds == 0:
+            ratios = get_newest_ratios(names, num_lookback_steps, generated_models)
+            seconds = time_interval_in_seconds

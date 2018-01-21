@@ -15,9 +15,9 @@ info = client.get_account()
 def get_ratios_1min_24h(currency):
     # fetch 1 minute klines for the last day up until now
     klines = client.get_historical_klines(currency, Client.KLINE_INTERVAL_1MINUTE, "18 Jan, 2018")
-    # print("KLINES: " + str(klines))
+    print("KLINES: " + str(klines))
 
-    close_data = np.array(klines)[:, 3]
+    close_data = np.array(klines)[:, 4]
     # print("CLOSE DATA" + str(close_data))
     result = np.zeros(len(close_data))
     for h in range(0, (len(close_data))):
